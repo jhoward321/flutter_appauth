@@ -26,23 +26,24 @@ class _MyAppState extends State<MyApp> {
   TextEditingController _refreshTokenTextController = TextEditingController();
   String _userInfo = '';
 
-  String _clientId = 'native.code';
-  String _redirectUrl = 'io.identityserver.demo:/oauthredirect';
-  String _issuer = 'https://demo.identityserver.io';
-  String _discoveryUrl =
-      'https://demo.identityserver.io/.well-known/openid-configuration';
+  String _clientId = 'mobile';
+  String _redirectUrl = 'io.hopapp:/oauth2redirect';
+  String _issuer = 'https://10.0.2.2:5001';
+  String _discoveryUrl = "https://10.0.2.2:5001/.well-known/openid-configuration";
+//  String _discoveryUrl =
+//      'https://demo.identityserver.io/.well-known/openid-configuration';
   List<String> _scopes = [
     'openid',
     'profile',
     'email',
     'offline_access',
-    'api'
+//    'api'
   ];
 
   AuthorizationServiceConfiguration _serviceConfiguration =
       AuthorizationServiceConfiguration(
-          'https://demo.identityserver.io/connect/authorize',
-          'https://demo.identityserver.io/connect/token');
+          'https://10.0.2.2:5001/connect/authorize',
+          'https://10.0.2.2:5001/connect/token');
 
   @override
   void initState() {
@@ -120,19 +121,19 @@ class _MyAppState extends State<MyApp> {
                   setBusyState();
 
                   // show that we can also explicitly specify the endpoints rather than getting from the details from the discovery document
-                  var result = await _appAuth.authorizeAndExchangeCode(
-                    AuthorizationTokenRequest(_clientId, _redirectUrl,
-                        serviceConfiguration: _serviceConfiguration,
-                        scopes: _scopes),
-                  );
+//                  var result = await _appAuth.authorizeAndExchangeCode(
+//                    AuthorizationTokenRequest(_clientId, _redirectUrl,
+//                        serviceConfiguration: _serviceConfiguration,
+//                        scopes: _scopes),
+//                  );
 
                   // this code block demonstrates passing in values for the prompt parameter. in this case it prompts the user login even if they have already signed in. the list of supported values depends on the identity provider
-                  // var result = await _appAuth.authorizeAndExchangeCode(
-                  //   AuthorizationTokenRequest(_clientId, _redirectUrl,
-                  //       serviceConfiguration: _serviceConfiguration,
-                  //       scopes: _scopes,
-                  //       promptValues: ['login']),
-                  // );
+                   var result = await _appAuth.authorizeAndExchangeCode(
+                     AuthorizationTokenRequest(_clientId, _redirectUrl,
+                         serviceConfiguration: _serviceConfiguration,
+                         scopes: _scopes,
+                         promptValues: ['login']),
+                   );
 
                   if (result != null) {
                     _processAuthTokenResponse(result);
@@ -210,10 +211,11 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future _testApi(TokenResponse response) async {
-    var httpResponse = await http.get('https://demo.identityserver.io/api/test',
+    var httpResponse = await http.get('https://10.0.2.2:5001/Manage/Index',
         headers: {'Authorization': 'Bearer $_accessToken'});
     setState(() {
       _userInfo = httpResponse.statusCode == 200 ? httpResponse.body : '';
+//      _userInfo = true ? httpResponse.body : '';
       _isBusy = false;
     });
   }
