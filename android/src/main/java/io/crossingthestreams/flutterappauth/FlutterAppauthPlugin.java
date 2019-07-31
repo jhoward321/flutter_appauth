@@ -3,6 +3,7 @@ package io.crossingthestreams.flutterappauth;
 import android.content.Intent;
 import android.net.Uri;
 
+import net.openid.appauth.AppAuthConfiguration;
 import net.openid.appauth.AuthorizationException;
 import net.openid.appauth.AuthorizationRequest;
 import net.openid.appauth.AuthorizationResponse;
@@ -12,6 +13,8 @@ import net.openid.appauth.ClientSecretBasic;
 import net.openid.appauth.ResponseTypeValues;
 import net.openid.appauth.TokenRequest;
 import net.openid.appauth.TokenResponse;
+import net.openid.appauth.connectivity.ConnectionBuilder;
+import net.openid.appauth.connectivity.DefaultConnectionBuilder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,8 +49,10 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
     private final Registrar registrar;
     private final int RC_AUTH_EXCHANGE_CODE = 65030;
     private final int RC_AUTH = 65031;
+
     private PendingOperation pendingOperation;
     private String clientSecret;
+    private final ConnectionBuilder connectionBuilder = ConnectionBuilderForTesting.INSTANCE;
 
     private FlutterAppauthPlugin(Registrar registrar) {
         this.registrar = registrar;
@@ -147,12 +152,19 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
                         finishWithDiscoveryError(ex);
                     }
                 }
+                
             };
+            //TODO: This is one of the places where I need to dynamically provide the connection builder
             if (tokenRequestParameters.discoveryUrl != null) {
-                AuthorizationServiceConfiguration.fetchFromUrl(Uri.parse(tokenRequestParameters.discoveryUrl), callback);
+                AuthorizationServiceConfiguration.fetchFromUrl(Uri.parse(tokenRequestParameters.discoveryUrl), callback, connectionBuilder);
             } else {
-                AuthorizationServiceConfiguration.fetchFromIssuer(Uri.parse(tokenRequestParameters.issuer), callback);
-
+                Uri configurationUri = Uri.parse(tokenRequestParameters.issuer)
+                        .buildUpon()
+                        .appendPath(AuthorizationServiceConfiguration.WELL_KNOWN_PATH)
+                        .appendPath(AuthorizationServiceConfiguration.OPENID_CONFIGURATION_RESOURCE)
+                        .build();
+                AuthorizationServiceConfiguration.fetchFromUrl(configurationUri, callback, connectionBuilder);
+//                AuthorizationServiceConfiguration.fetchFromIssuer(Uri.parse(tokenRequestParameters.issuer), callback);
             }
         }
 
@@ -179,11 +191,16 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
                             finishWithDiscoveryError(ex);
                         }
                     }
-                });
+                }, connectionBuilder);
 
             } else {
-
-                AuthorizationServiceConfiguration.fetchFromIssuer(Uri.parse(tokenRequestParameters.issuer), new AuthorizationServiceConfiguration.RetrieveConfigurationCallback() {
+                Uri configurationUri = Uri.parse(tokenRequestParameters.issuer)
+                        .buildUpon()
+                        .appendPath(AuthorizationServiceConfiguration.WELL_KNOWN_PATH)
+                        .appendPath(AuthorizationServiceConfiguration.OPENID_CONFIGURATION_RESOURCE)
+                        .build();
+//                AuthorizationServiceConfiguration.fetchFromIssuer(Uri.parse(tokenRequestParameters.issuer), new AuthorizationServiceConfiguration.RetrieveConfigurationCallback() {
+                AuthorizationServiceConfiguration.fetchFromUrl(configurationUri, new AuthorizationServiceConfiguration.RetrieveConfigurationCallback() {
                     @Override
                     public void onFetchConfigurationCompleted(@Nullable AuthorizationServiceConfiguration serviceConfiguration, @Nullable AuthorizationException ex) {
                         if (ex == null) {
@@ -192,7 +209,7 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
                             finishWithDiscoveryError(ex);
                         }
                     }
-                });
+                }, connectionBuilder);
             }
         }
     }
@@ -222,9 +239,11 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
         }
 
         AuthorizationRequest authRequest = authRequestBuilder.build();
-        AuthorizationService authService = new AuthorizationService(registrar.context());
+        AppAuthConfiguration clientConfiguration = new AppAuthConfiguration.Builder().setConnectionBuilder(connectionBuilder).build();
+        AuthorizationService authService = new AuthorizationService(registrar.context(), clientConfiguration);
         Intent authIntent = authService.getAuthorizationRequestIntent(authRequest);
         registrar.activity().startActivityForResult(authIntent, exchangeCode ? RC_AUTH_EXCHANGE_CODE : RC_AUTH);
+        authService.dispose();
     }
 
     private void performTokenRequest(AuthorizationServiceConfiguration serviceConfiguration, TokenRequestParameters tokenRequestParameters) {
@@ -246,7 +265,8 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
         }
 
         TokenRequest tokenRequest = builder.build();
-        AuthorizationService authService = new AuthorizationService(registrar.context());
+        AppAuthConfiguration clientConfiguration = new AppAuthConfiguration.Builder().setConnectionBuilder(connectionBuilder).build();
+        AuthorizationService authService = new AuthorizationService(registrar.context(), clientConfiguration);
         AuthorizationService.TokenResponseCallback tokenResponseCallback = new AuthorizationService.TokenResponseCallback() {
             @Override
             public void onTokenRequestCompleted(
