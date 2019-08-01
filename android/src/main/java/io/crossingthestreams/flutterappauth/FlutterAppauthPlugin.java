@@ -52,6 +52,7 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
 
     private PendingOperation pendingOperation;
     private String clientSecret;
+    //TODO: make this dynamic based off configuration
     private final ConnectionBuilder connectionBuilder = ConnectionBuilderForTesting.INSTANCE;
 
     private FlutterAppauthPlugin(Registrar registrar) {
@@ -154,7 +155,6 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
                 }
                 
             };
-            //TODO: This is one of the places where I need to dynamically provide the connection builder
             if (tokenRequestParameters.discoveryUrl != null) {
                 AuthorizationServiceConfiguration.fetchFromUrl(Uri.parse(tokenRequestParameters.discoveryUrl), callback, connectionBuilder);
             } else {
@@ -164,7 +164,6 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
                         .appendPath(AuthorizationServiceConfiguration.OPENID_CONFIGURATION_RESOURCE)
                         .build();
                 AuthorizationServiceConfiguration.fetchFromUrl(configurationUri, callback, connectionBuilder);
-//                AuthorizationServiceConfiguration.fetchFromIssuer(Uri.parse(tokenRequestParameters.issuer), callback);
             }
         }
 
@@ -199,7 +198,6 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
                         .appendPath(AuthorizationServiceConfiguration.WELL_KNOWN_PATH)
                         .appendPath(AuthorizationServiceConfiguration.OPENID_CONFIGURATION_RESOURCE)
                         .build();
-//                AuthorizationServiceConfiguration.fetchFromIssuer(Uri.parse(tokenRequestParameters.issuer), new AuthorizationServiceConfiguration.RetrieveConfigurationCallback() {
                 AuthorizationServiceConfiguration.fetchFromUrl(configurationUri, new AuthorizationServiceConfiguration.RetrieveConfigurationCallback() {
                     @Override
                     public void onFetchConfigurationCompleted(@Nullable AuthorizationServiceConfiguration serviceConfiguration, @Nullable AuthorizationException ex) {
@@ -284,7 +282,7 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
         } else {
             authService.performTokenRequest(tokenRequest, new ClientSecretBasic(clientSecret), tokenResponseCallback);
         }
-
+        authService.dispose();
     }
 
     private void finishWithTokenError(AuthorizationException ex) {
@@ -324,7 +322,8 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
     private void processAuthorizationData(final AuthorizationResponse authResponse, AuthorizationException authException, boolean exchangeCode) {
         if (authException == null) {
             if (exchangeCode) {
-                AuthorizationService authService = new AuthorizationService(registrar.context());
+                AppAuthConfiguration clientConfiguration = new AppAuthConfiguration.Builder().setConnectionBuilder(connectionBuilder).build();
+                AuthorizationService authService = new AuthorizationService(registrar.context(), clientConfiguration);
                 AuthorizationService.TokenResponseCallback tokenResponseCallback = new AuthorizationService.TokenResponseCallback() {
                     @Override
                     public void onTokenRequestCompleted(
@@ -341,6 +340,7 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
                 } else {
                     authService.performTokenRequest(authResponse.createTokenExchangeRequest(), new ClientSecretBasic(clientSecret), tokenResponseCallback);
                 }
+                authService.dispose();
             } else {
                 finishWithSuccess(authorizationResponseToMap(authResponse));
             }
