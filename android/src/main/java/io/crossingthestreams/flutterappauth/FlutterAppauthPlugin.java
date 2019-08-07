@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import androidx.annotation.Nullable;
+
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -53,7 +54,7 @@ public class FlutterAppauthPlugin implements MethodCallHandler, PluginRegistry.A
     private PendingOperation pendingOperation;
     private String clientSecret;
     //TODO: make this dynamic based off configuration
-    private final ConnectionBuilder connectionBuilder = ConnectionBuilderForTesting.INSTANCE;
+    private final ConnectionBuilder connectionBuilder = !BuildConfig.REQUIRE_HTTPS && BuildConfig.DEBUG ? ConnectionBuilderForTesting.INSTANCE : DefaultConnectionBuilder.INSTANCE;
 
     private FlutterAppauthPlugin(Registrar registrar) {
         this.registrar = registrar;

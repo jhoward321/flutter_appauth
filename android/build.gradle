@@ -27,6 +27,7 @@ android {
     defaultConfig {
         minSdkVersion 16
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField "boolean", "REQUIRE_HTTPS", "true"
     }
     lintOptions {
         disable 'InvalidPackage'

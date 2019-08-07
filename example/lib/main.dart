@@ -215,7 +215,6 @@ class _MyAppState extends State<MyApp> {
         headers: {'Authorization': 'Bearer $_accessToken'});
     setState(() {
       _userInfo = httpResponse.statusCode == 200 ? httpResponse.body : '';
-//      _userInfo = true ? httpResponse.body : '';
       _isBusy = false;
     });
   }
